@@ -1,5 +1,6 @@
 from nltk.corpus import brown, treebank
 from nltk.tag.util import untag
+import nltk
 from collections import defaultdict
 
 unknown_token = "<UNK>"
@@ -170,6 +171,14 @@ def main():
     predicted_test_set = trigram_pos_tagger.Test(tagged_test_set_prep)
     print "--- Trigram HMM accuracy ---"
     ComputeAccuracy(tagged_test_set_prep, predicted_test_set)
+
+    trainingSents = treebank.tagged_sents()[:50000]
+    testSents = treebank.tagged_sents()[-3000:]
+
+    trigramTagger = nltk.TrigramTagger(trainingSents)
+    evalResult = trigramTagger.evaluate(testSents)
+    print "--- NLTK TrigramTagger accuracy ---"
+    print "%4.2f" % (100.0 * evalResult)
 
 if __name__ == "__main__": 
     main()
