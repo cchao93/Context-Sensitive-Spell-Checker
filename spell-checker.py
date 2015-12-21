@@ -240,12 +240,15 @@ class ContextWords:
                     for j in xrange(i + 1, i + 1 + self.k):
                         context_word = sent[j]
                         self.context_probs[(context_word, word)] += 1
+        to_delete = []
         for bigram, freq in self.context_probs.iteritems():
             word_count = self.vocabulary[bigram[1]]
-            #if freq < self.min_occurrences or (word_count - freq) < self.min_occurrences:
-            #del self.context_probs[bigram]
-            #else:
-            self.context_probs[bigram] = (float)(freq) / (float)(word_count)
+            if freq < self.min_occurrences or (word_count - freq) < self.min_occurrences:
+                to_delete.append(bigram)
+            else:
+                self.context_probs[bigram] = (float)(freq) / (float)(word_count)
+        for bigram in to_delete:
+                del self.context_probs[bigram]
 
     #def PruneContextWords(self):
     
