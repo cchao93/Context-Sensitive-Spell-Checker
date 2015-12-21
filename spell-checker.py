@@ -2,18 +2,36 @@ from nltk.corpus import brown, treebank
 from nltk.tag.util import untag
 import nltk
 from collections import defaultdict
+from random import randint
 
 unknown_token = "<UNK>"
 start_token = "<S>"
 end_token = "</S>"
 
-confusion_sets = [] 
 
 def BuildConfusionSets():
-	txt_file = open("confusion_sets.dat", "r")
-	for line in txt_file:
+    confusion_sets = []
+    txt_file = open("confusion_sets_large.dat", "r")
+    for line in txt_file:
 		confusion_sets.append(line[:-1].split(", "))
-	print confusion_sets
+    return confusion_sets
+
+def SimulateSpellingErrors(test_set, confusion_sets):
+    error = None
+    simulated_test_set = []
+    for sent in test_set:
+        simulated_sent = []
+        for word in sent:
+            error = False
+            for c_set in confusion_sets:
+                if word[0] in c_set:
+                    error_index = randint(0, len(c_set) - 1)
+                    simulated_sent.append((c_set[error_index], word[1]))
+                    error = True
+                    break
+            if error == False: simulated_sent.append(word)
+        simulated_test_set.append(simulated_sent)
+    return simulated_test_set
 
 def TreebankNoTraces():
     return [[x for x in sent if x[1] != "-NONE-"] for sent in treebank.tagged_sents()]
@@ -207,22 +225,23 @@ def main():
     tagged_training_set = brown.tagged_sents()[:50000]
     tagged_test_set = brown.tagged_sents()[-3000:]
     """
-    BuildConfusionSets()
-    """
+    
     treebank_tagged_sents = TreebankNoTraces()
     tagged_training_set = treebank_tagged_sents[:50000] 
     tagged_test_set = treebank_tagged_sents[-3000:]
 
     vocabulary = BuildVocabulary(tagged_training_set)
+    confusion_sets = BuildConfusionSets()
 
     tagged_training_set_prep = PreprocessTaggedCorpus(tagged_training_set, vocabulary)
     tagged_test_set_prep = PreprocessTaggedCorpus(tagged_test_set, vocabulary)
+    tagged_test_set_prep_simulated = SimulateSpellingErrors(tagged_test_set_prep, confusion_sets)
     training_set_prep = UntagCorpus(tagged_training_set_prep)
-    test_set_prep = UntagCorpus(tagged_test_set_prep)
+    test_set_prep_simulated = UntagCorpus(tagged_test_set_prep_simulated)
 
     print " ".join(training_set_prep[0])
-    print " ".join(test_set_prep[0])
-
+    print " ".join(test_set_prep_simulated[0])
+    """
     trigram_pos_tagger = TrigramHMM()
     trigram_pos_tagger.Train(tagged_training_set_prep)
     predicted_test_set = trigram_pos_tagger.Test(tagged_test_set_prep)
