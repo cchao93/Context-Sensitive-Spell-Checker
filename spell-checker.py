@@ -16,6 +16,11 @@ def BuildConfusionSets():
 		confusion_sets.append(line[:-1].split(", "))
     return confusion_sets
 
+def IsInConfusionSets(word, confusion_sets):
+    for c_set in confusion_sets:
+        if word in c_set: return True
+    return False
+
 def SimulateSpellingErrors(test_set, confusion_sets):
     error = None
     simulated_test_set = []
@@ -220,16 +225,38 @@ class TrigramHMM:
         return predicted_test_set
 
 class ContextWords:
-    def __init__(self):
-        self.dictionary = defaultdict(lambda:defaultdict(int))
-    def ComputeDictionary(self, training_set):
+    def __init__(self, k, min_occurrences, vocabulary, confusion_sets):
+        self.k = k
+        self.min_occurrences = min_occurrences
+        self.vocabulary = vocabulary
+        self.confusion_sets = confusion_sets
+        self.context_probs = defaultdict(float)
+
+    def ComputeContextProbs(self, training_set):
+        for sent in training_set:
+            for i in xrange(0, len(sent)):
+                word = sent[i]
+                if IsInConfusionSets(word, self.confusion_sets):
+                    for j in xrange(i - self.k, i):
+                        context_word = sent[j]
+                        self.context_probs[(context_word, word)] += 1
+                    for j in xrange(i + 1, i + 1 + self.k):
+                        context_word = sent[j]
+                        self.context_probs[(context_word, word)] += 1
+        for bigram, freq in self.context_probs.iteritems():
+            #if freq < min_occurrences or
+            self.context_probs[bigram] = (float)(freq) / (float)(self.vocabulary[bigram[1]])
+
+    #def PruneContextWords(self):
+    
+    def Train(self, training_set):
+        self.ComputeContextProbs(training_set)
 
 def main():
     """
     tagged_training_set = brown.tagged_sents()[:50000]
     tagged_test_set = brown.tagged_sents()[-3000:]
     """
-    
     treebank_tagged_sents = TreebankNoTraces()
     tagged_training_set = treebank_tagged_sents[:50000] 
     tagged_test_set = treebank_tagged_sents[-3000:]
@@ -260,5 +287,9 @@ def main():
     print "--- NLTK TrigramTagger accuracy ---"
     print "%4.2f" % (100.0 * evalResult)
     """
+    context_words_spell_checker = ContextWords(3, 10, vocabulary, confusion_sets)
+    context_words_spell_checker.Train(training_set_prep)
+
+
 if __name__ == "__main__": 
     main()
