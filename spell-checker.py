@@ -7,6 +7,14 @@ unknown_token = "<UNK>"
 start_token = "<S>"
 end_token = "</S>"
 
+confusion_sets = [] 
+
+def BuildConfusionSets():
+	txt_file = open("confusion_sets.dat", "r")
+	for line in txt_file:
+		confusion_sets.append(line[:-1].split(", "))
+	print confusion_sets
+
 def TreebankNoTraces():
     return [[x for x in sent if x[1] != "-NONE-"] for sent in treebank.tagged_sents()]
 
@@ -193,10 +201,13 @@ class TrigramHMM:
             predicted_test_set.append(zip(untag(sent), self.Viterbi(untag(sent))))
         return predicted_test_set
 
+
 def main():
     """
     tagged_training_set = brown.tagged_sents()[:50000]
     tagged_test_set = brown.tagged_sents()[-3000:]
+    """
+    BuildConfusionSets()
     """
     treebank_tagged_sents = TreebankNoTraces()
     tagged_training_set = treebank_tagged_sents[:50000] 
@@ -225,6 +236,6 @@ def main():
     evalResult = trigramTagger.evaluate(testSents)
     print "--- NLTK TrigramTagger accuracy ---"
     print "%4.2f" % (100.0 * evalResult)
-
+    """
 if __name__ == "__main__": 
     main()
