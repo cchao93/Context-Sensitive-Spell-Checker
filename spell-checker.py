@@ -22,19 +22,16 @@ def IsInConfusionSet(word, confusion_sets):
     return None
 
 def SimulateSpellingErrors(test_set, confusion_sets):
-    error = None
     simulated_test_set = []
     for sent in test_set:
         simulated_sent = []
         for word in sent:
-            error = False
-            for c_set in confusion_sets:
-                if word[0] in c_set:
-                    error_index = randint(0, len(c_set) - 1)
-                    simulated_sent.append((c_set[error_index], word[1]))
-                    error = True
-                    break
-            if error == False: simulated_sent.append(word)
+            c_set = IsInConfusionSet(word[0], confusion_sets)
+            if c_set != None:
+                error_index = randint(0, len(c_set) - 1)
+                simulated_sent.append((c_set[error_index], word[1]))
+            else:
+                simulated_sent.append(word)
         simulated_test_set.append(simulated_sent)
     return simulated_test_set
 
