@@ -219,6 +219,10 @@ class TrigramHMM:
             predicted_test_set.append(zip(untag(sent), self.Viterbi(untag(sent))))
         return predicted_test_set
 
+class ContextWords:
+    def __init__(self):
+        self.dictionary = defaultdict(lambda:defaultdict(int))
+    def ComputeDictionary(self, training_set):
 
 def main():
     """
