@@ -16,10 +16,10 @@ def BuildConfusionSets():
 		confusion_sets.append(line[:-1].split(", "))
     return confusion_sets
 
-def IsInConfusionSets(word, confusion_sets):
+def IsInConfusionSet(word, confusion_sets):
     for c_set in confusion_sets:
-        if word in c_set: return True
-    return False
+        if word in c_set: return c_set
+    return None
 
 def SimulateSpellingErrors(test_set, confusion_sets):
     error = None
@@ -236,7 +236,7 @@ class ContextWords:
         for sent in training_set:
             for i in xrange(0, len(sent)):
                 word = sent[i]
-                if IsInConfusionSets(word, self.confusion_sets):
+                if IsInConfusionSet(word, self.confusion_sets) != None:
                     for j in xrange(i - self.k, i):
                         context_word = sent[j]
                         self.context_probs[(context_word, word)] += 1
@@ -244,13 +244,58 @@ class ContextWords:
                         context_word = sent[j]
                         self.context_probs[(context_word, word)] += 1
         for bigram, freq in self.context_probs.iteritems():
-            #if freq < min_occurrences or
-            self.context_probs[bigram] = (float)(freq) / (float)(self.vocabulary[bigram[1]])
+            word_count = self.vocabulary[bigram[1]]
+            #if freq < self.min_occurrences or (word_count - freq) < self.min_occurrences:
+            #del self.context_probs[bigram]
+            #else:
+            self.context_probs[bigram] = (float)(freq) / (float)(word_count)
 
     #def PruneContextWords(self):
     
     def Train(self, training_set):
         self.ComputeContextProbs(training_set)
+
+    def Test(self, test_set):
+        predicted_test_set = list()
+        for sent in test_set:
+            predicted_sent = list()
+            for i in xrange(0, len(sent)):
+                word = sent[i]
+                c_set = IsInConfusionSet(word, self.confusion_sets)
+                if c_set != None:
+                    c_dict = self.ConfusionSetToDict(c_set)
+                    for ambiguous_word in c_dict.keys():
+                        for j in xrange(i - self.k, i):
+                            context_word = sent[j]
+                            bigram = (context_word, ambiguous_word)
+                            if bigram in self.context_probs and self.context_probs[bigram] != 0.0:
+                                c_dict[ambiguous_word] *= self.context_probs[bigram]
+                        for j in xrange(i + 1, i + 1 + self.k):
+                            context_word = sent[j]
+                            bigram = (context_word, ambiguous_word)
+                            if bigram in self.context_probs and self.context_probs[bigram] != 0.0:
+                                c_dict[ambiguous_word] *= self.context_probs[bigram]
+                    max_prob = None
+                    predicted_word = None
+                    for ambiguous_word, prob in c_dict.iteritems():
+                        if prob > max_prob:
+                            max_prob = prob
+                            predicted_word = ambiguous_word
+                    predicted_sent.append(predicted_word)
+                else:
+                    predicted_sent.append(word)
+            predicted_test_set.append(predicted_sent)
+        return predicted_test_set
+
+    def ConfusionSetToDict(self, confusion_set):
+        confusion_dict = defaultdict(float)
+        word_count = 0
+        for key in self.vocabulary.keys():
+            word_count += self.vocabulary[key]
+        for word in confusion_set:
+            confusion_dict[word] = (float)(self.vocabulary[word]) / (float)(word_count)
+        return confusion_dict
+
 
 def main():
     """
@@ -289,6 +334,7 @@ def main():
     """
     context_words_spell_checker = ContextWords(3, 10, vocabulary, confusion_sets)
     context_words_spell_checker.Train(training_set_prep)
+    context_words_spell_checker.Test(test_set_prep_simulated)
 
 
 if __name__ == "__main__": 
