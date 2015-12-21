@@ -12,4 +12,4 @@ Thing to do before writing that paper (in the order of urgency)
   classifier
 - Implement word trigrams
 - Try SLI and DI for each method
-- Take measurements for everything we've done for the paper
+- Use various data sources & take measurements for everything we've done for  the paper

@@ -69,6 +69,26 @@ def UntagCorpus(corpus):
 		untagged_corpus.append(untagged_sent)
 	return untagged_corpus
 
+def MostCommonWordBaseline(test_set, vocabulary, confusion_sets):
+    predicted_test_set = []
+    for sent in test_set:
+        predicted_sent = []
+        for word in sent:
+            c_set = IsInConfusionSet(word, confusion_sets)
+            if c_set != None:
+                max_freq = None
+                predicted_word = None
+                for ambiguous_word in c_set:
+                    if ambiguous_word in vocabulary and vocabulary[ambiguous_word] > max_freq:
+                        max_freq = vocabulary[ambiguous_word]
+                        predicted_word = ambiguous_word
+                predicted_sent.append(predicted_word)
+            else:
+                predicted_sent.append(word)
+        predicted_test_set.append(predicted_sent)
+    return predicted_test_set
+
+
 def ComputeAccuracy(test_set, test_set_predicted):
     correct_sent_count = 0
     correct_word_count = 0
@@ -232,9 +252,11 @@ class ContextWords:
                 word = sent[i]
                 if IsInConfusionSet(word, self.confusion_sets) != None:
                     for j in xrange(i - self.k, i):
+                        if j not in xrange(0, len(sent)): break
                         context_word = sent[j]
                         self.context_probs[(context_word, word)] += 1
                     for j in xrange(i + 1, i + 1 + self.k):
+                        if j not in xrange(0, len(sent)): break
                         context_word = sent[j]
                         self.context_probs[(context_word, word)] += 1
         to_delete = []
@@ -263,11 +285,13 @@ class ContextWords:
                     c_dict = self.ConfusionSetToDict(c_set)
                     for ambiguous_word in c_dict.keys():
                         for j in xrange(i - self.k, i):
+                            if j not in xrange(0, len(sent)): break
                             context_word = sent[j]
                             bigram = (context_word, ambiguous_word)
                             if bigram in self.context_probs and self.context_probs[bigram] != 0.0:
                                 c_dict[ambiguous_word] *= self.context_probs[bigram]
                         for j in xrange(i + 1, i + 1 + self.k):
+                            if j not in xrange(0, len(sent)): break
                             context_word = sent[j]
                             bigram = (context_word, ambiguous_word)
                             if bigram in self.context_probs and self.context_probs[bigram] != 0.0:
@@ -295,14 +319,14 @@ class ContextWords:
 
 
 def main():
-    """
+    """    
     tagged_training_set = brown.tagged_sents()[:50000]
     tagged_test_set = brown.tagged_sents()[-3000:]
     """
     treebank_tagged_sents = TreebankNoTraces()
     tagged_training_set = treebank_tagged_sents[:50000] 
     tagged_test_set = treebank_tagged_sents[-3000:]
-
+    
     vocabulary = BuildVocabulary(tagged_training_set)
     confusion_sets = BuildConfusionSets()
 
@@ -315,6 +339,10 @@ def main():
 
     print " ".join(training_set_prep[0])
     print " ".join(test_set_prep_simulated[0])
+
+    test_set_predicted_baseline = MostCommonWordBaseline(test_set_prep_simulated, vocabulary, confusion_sets)
+    print "--- Most common class baseline accuracy ---"
+    ComputeAccuracy(test_set_prep, test_set_predicted_baseline)
     """
     trigram_pos_tagger = TrigramHMM()
     trigram_pos_tagger.Train(tagged_training_set_prep)
