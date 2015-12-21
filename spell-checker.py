@@ -219,7 +219,6 @@ class BigramHMM:
     def Test(self, test_set):
         predicted_test_set = list()
         for sent in test_set:
-            print sent
             predicted_test_set.append(zip(untag(sent), self.Viterbi(untag(sent))))
         return predicted_test_set
 
@@ -353,6 +352,12 @@ class TrigramHMM:
             predicted_test_set.append(zip(untag(sent), self.Viterbi(untag(sent))))
         return predicted_test_set
 
+    def TestContextWords(self, test_set):
+        predicted_test_set = list()
+        for sent in test_set:
+            predicted_test_set.append(zip(sent), self.Viterbi(sent))
+        return predicted_test_set 
+
 class ContextWords:
     def __init__(self, k, min_occurrences, vocabulary, confusion_sets):
         self.k = k
@@ -421,7 +426,6 @@ class ContextWords:
                 else:
                     predicted_sent.append(word)
             predicted_test_set.append(predicted_sent)
-        print predicted_test_set
         return predicted_test_set
 
     def ConfusionSetToDict(self, confusion_set):
@@ -456,10 +460,18 @@ def main():
     print " ".join(training_set_prep[0])
     print " ".join(test_set_prep_simulated[0])
 
+    """
     test_set_predicted_baseline = MostCommonWordBaseline(test_set_prep_simulated, vocabulary, confusion_sets)
     print "--- Most common class baseline accuracy ---"
     ComputeAccuracy(test_set_prep, test_set_predicted_baseline)
-    
+    """
+
+    context_words_spell_checker = ContextWords(3, 10, vocabulary, confusion_sets)
+    context_words_spell_checker.Train(training_set_prep)
+    predicted_test_set = context_words_spell_checker.Test(test_set_prep_simulated)
+    print "--- Context Words accuracy ---"
+    ComputeAccuracy(test_set_prep, predicted_test_set)
+
     """
     trigram_pos_tagger = TrigramHMM()
     trigram_pos_tagger.Train(tagged_training_set_prep)
@@ -467,13 +479,23 @@ def main():
     print "--- Trigram HMM accuracy ---"
     ComputeAccuracy(tagged_test_set_prep, predicted_tagged_test_set)
     """
-    """
+ 
     bigram_hmm = BigramHMM()
     bigram_hmm.Train(tagged_training_set_prep)
     predicted_tagged_test_set = bigram_hmm.Test(tagged_test_set_prep)
     print "--- Bigram HMM accuracy ---"
     ComputeAccuracy(tagged_test_set_prep, predicted_tagged_test_set)
+    
+    """The issue with the simulated words and the BigramHMM is that some of the words
+    in the confusion set are not seen in the training set so when you try to look them
+    up in the tag dictionary, they are not there and so they assertion fails
     """
+    bigram_hmm_simulated = BigramHMM()
+    bigram_hmm_simulated.Train(tagged_training_set_prep)
+    predicted_tagged_test_set_simulated = bigram_hmm.Test(tagged_test_set_prep_simulated)
+    print "--- Bigram HMM Simluated accuracy ---"
+    ComputeAccuracy(tagged_test_set_prep_simulated, predicted_tagged_test_set_simulated)
+
 
     trainingSents = treebank.tagged_sents()[:50000]
     testSents = treebank.tagged_sents()[-3000:]
@@ -482,12 +504,6 @@ def main():
     evalResult = trigramTagger.evaluate(testSents)
     print "--- NLTK TrigramTagger accuracy ---"
     print "%4.2f" % (100.0 * evalResult)
-    
-    context_words_spell_checker = ContextWords(3, 10, vocabulary, confusion_sets)
-    context_words_spell_checker.Train(training_set_prep)
-    predicted_test_set = context_words_spell_checker.Test(test_set_prep_simulated)
-    print "--- Context Words accuracy ---"
-    ComputeAccuracy(test_set_prep, predicted_test_set)
     
 
 if __name__ == "__main__": 
