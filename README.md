@@ -5,6 +5,7 @@ Thing to do before writing that paper (in the order of urgency)
 - Combine POS trigrams with context words
 - Prune confusion sets using the method Elif talked about and see if that
   improves accuracy
+- Stopwords (should include start, end, and unknown tokens)
 - Precision & Recall
 - Play around with different k and min-threshold values and see if that
   improves accuracy
