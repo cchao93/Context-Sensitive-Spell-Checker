@@ -73,9 +73,8 @@ def UntagCorpus(corpus):
 	return untagged_corpus
 
 def ComputeAccuracy(test_set, test_set_predicted):
-    """ Using the gold standard tags in test_set, compute the sentence and tagging accuracy of test_set_predicted. """
     correct_sent_count = 0
-    correct_tag_count = 0
+    correct_word_count = 0
     num_sents = len(test_set)
     num_words = 0
 
@@ -86,14 +85,12 @@ def ComputeAccuracy(test_set, test_set_predicted):
     print "Percent sentence accuracy in test set is %.2f%%." %sent_accuracy
     
     for i in xrange(0, num_sents):
-        for j in xrange(1, (len(test_set[i]) - 1)):
+        for j in xrange(2, (len(test_set[i]) - 2)):
             num_words += 1
-            #if test_set[i][j] != (start_token, start_token)
-            #and test_set[i][j] != (end_token, end_token)
             if test_set[i][j] == test_set_predicted[i][j]:
-                correct_tag_count += 1
-    tagging_accuracy = ((float)(correct_tag_count) / (float)(num_words)) * 100.00
-    print "Percent tagging accuracy in test set is %.2f%%." %tagging_accuracy
+                correct_word_count += 1
+    word_accuracy = ((float)(correct_word_count) / (float)(num_words)) * 100.00
+    print "Percent word accuracy in test set is %.2f%%." %word_accuracy
 
 class TrigramHMM:
     def __init__(self):
@@ -313,6 +310,7 @@ def main():
     tagged_test_set_prep = PreprocessTaggedCorpus(tagged_test_set, vocabulary)
     tagged_test_set_prep_simulated = SimulateSpellingErrors(tagged_test_set_prep, confusion_sets)
     training_set_prep = UntagCorpus(tagged_training_set_prep)
+    test_set_prep = UntagCorpus(tagged_test_set_prep)
     test_set_prep_simulated = UntagCorpus(tagged_test_set_prep_simulated)
 
     print " ".join(training_set_prep[0])
@@ -320,9 +318,9 @@ def main():
     """
     trigram_pos_tagger = TrigramHMM()
     trigram_pos_tagger.Train(tagged_training_set_prep)
-    predicted_test_set = trigram_pos_tagger.Test(tagged_test_set_prep)
+    predicted_tagged_test_set = trigram_pos_tagger.Test(tagged_test_set_prep)
     print "--- Trigram HMM accuracy ---"
-    ComputeAccuracy(tagged_test_set_prep, predicted_test_set)
+    ComputeAccuracy(tagged_test_set_prep, predicted_tagged_test_set)
 
     trainingSents = treebank.tagged_sents()[:50000]
     testSents = treebank.tagged_sents()[-3000:]
@@ -334,7 +332,9 @@ def main():
     """
     context_words_spell_checker = ContextWords(3, 10, vocabulary, confusion_sets)
     context_words_spell_checker.Train(training_set_prep)
-    context_words_spell_checker.Test(test_set_prep_simulated)
+    predicted_test_set = context_words_spell_checker.Test(test_set_prep_simulated)
+    print "--- Context Words accuracy ---"
+    ComputeAccuracy(test_set_prep, predicted_test_set)
 
 
 if __name__ == "__main__": 
