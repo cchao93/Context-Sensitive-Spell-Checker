@@ -30,6 +30,11 @@ def IsInConfusionSet(word, confusion_sets):
         if word in c_set: return c_set
     return None
 
+def BuildStopWordsList():
+    txt_file = open("stop_words.dat", "r")
+    stop_words = txt_file.read().splitlines()
+    return stop_words
+
 def SimulateSpellingErrors(test_set, confusion_sets):
     simulated_test_set = []
     for sent in test_set:
@@ -331,6 +336,8 @@ def main():
     vocabulary = BuildVocabulary(tagged_training_set)
     confusion_sets = BuildConfusionSets()
     pruned_confusion_sets = PruneConfusionSets(vocabulary, confusion_sets)
+
+    stop_words = BuildStopWordsList()
 
     tagged_test_set_simulated = SimulateSpellingErrors(tagged_test_set, pruned_confusion_sets)
 
