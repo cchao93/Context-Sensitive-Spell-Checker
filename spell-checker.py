@@ -117,11 +117,26 @@ def ComputeAccuracy(test_set, test_set_predicted):
     word_accuracy = ((float)(correct_word_count) / (float)(num_words)) * 100.00
     print "Percent word accuracy in test set is %.2f%%." %word_accuracy
 
-def Precision(test_set, test_set_predicted):
-    correct_sent_count = 0
-    correct_word_count = 0
+def Precision(test_set, test_set_simulated, test_set_predicted):
+    tp = 0.0
+    fp = 0.0
     num_sents = len(test_set)
-    num_words = 0
+    precision = 0.0
+
+    for i in xrange(0, num_sents):
+        predicted_sent = untag(test_set_predicted[i])
+        for j in xrange(2, len(test_set[i]) - 2):
+            if test_set[i][j] == test_set_simulated[i][j] and test_set[i][j] == predicted_sent[j]:
+                tp += 1
+            if test_set[i][j] != test_set_simulated[i][j] and test_set[i][j] == predicted_sent[j]:
+                fp += 1
+
+    precision = tp / (tp + fp)
+
+    return precision
+
+def recall(test_set, test_set_simulated, test_set_predicted):
+    pass
 
 class BigramHMM:
     def __init__(self):
@@ -505,13 +520,13 @@ def main():
     """The issue with the simulated words and the BigramHMM is that some of the words
     in the confusion set are not seen in the training set so when you try to look them
     up in the tag dictionary, they are not there and so they assertion fails
-    """
-    bigram_hmm_simulated = BigramHMM()
-    bigram_hmm_simulated.Train(tagged_training_set_prep)
-    predicted_tagged_test_set_simulated = bigram_hmm.Test(tagged_test_set_prep_simulated)
+    
+    bigram_hmm_predicted = BigramHMM()
+    bigram_hmm_predicted.Train(tagged_training_set_prep)
+    predicted_tagged_test_set_predicted = bigram_hmm.Test(tagged_test_set_prep_predicted)
     print "--- Bigram HMM Simluated accuracy ---"
-    ComputeAccuracy(tagged_test_set_prep_simulated, predicted_tagged_test_set_simulated)
-
+    ComputeAccuracy(tagged_test_set_prep_predicted, predicted_tagged_test_set_predicted)
+    """
 
     trainingSents = treebank.tagged_sents()[:50000]
     testSents = treebank.tagged_sents()[-3000:]
@@ -520,6 +535,8 @@ def main():
     evalResult = trigramTagger.evaluate(testSents)
     print "--- NLTK TrigramTagger accuracy ---"
     print "%4.2f" % (100.0 * evalResult)
+
+    print Precision(test_set_prep, predicted_test_set, predicted_tagged_test_set)
     
 
 if __name__ == "__main__": 
