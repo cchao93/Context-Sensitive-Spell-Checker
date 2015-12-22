@@ -4,7 +4,7 @@ Thing to do before writing that paper (in the order of urgency)
 
 MUST BE DONE
 - Combine POS trigrams with context words
-- Prune confusion sets using the method Elif talked about and see if that
+- Prune confusion sets & context words using the method Elif talked about and see if that
    improves accuracy
 - Stopwords (should include start, end, and unknown tokens)
 - Precision & Recall

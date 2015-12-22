@@ -1,9 +1,8 @@
+import nltk
 from nltk.corpus import brown, treebank
 from nltk.tag.util import untag
-import nltk
 from collections import defaultdict
 from random import randint
-from nltk.metrics.distance import edit_distance
 
 unknown_token = "<UNK>"
 start_token = "<S>"
@@ -15,28 +14,7 @@ def BuildConfusionSets():
     for line in txt_file:
 		confusion_sets.append(line[:-1].split(", "))
     return confusion_sets
-    """
-    c_sets = []
-    for sent in training_set:
-        for i in xrange(0, len(sent) - 1):
-            for j in xrange(i + 1, len(sent)):
-                if edit_distance(sent[i], sent[j]) == 1:
-                    in_set = False;
-                    for k in xrange(0, len(c_sets)):
-                        if sent[i] in c_sets[k] and sent[j] in c_sets[k]:
-                            in_set = True
-                            break
-                        elif sent[i] in c_sets[k] and sent[j] not in c_sets[k]:
-                            c_sets[k].append(sent[j])
-                            break
-                        elif sent[j] in c_sets[k] and sent[i] not in c_sets[k]:
-                            c_sets[k].append(sent[i])
-                            break
-                    if in_set == False:
-                        c_sets.append([sent[i], sent[j]])
-    print c_sets
-    return c_sets
-    """
+
 def PruneConfusionSets(vocabulary, confusion_sets):
     pruned_sets = []
     for c_set in confusion_sets:
@@ -73,7 +51,6 @@ def BuildVocabulary(corpus):
 	vocabulary = defaultdict(int)
 	for sent in corpus:
 		for word in untag(sent):
-			# no need to do the whole "if word not in vocabulary" thing b/c of defaultdict()
 			vocabulary[word] += 1
 	return vocabulary
 
@@ -82,14 +59,12 @@ def PreprocessTaggedCorpus(corpus, vocabulary):
 	for sent in corpus:
 		processed_sent = list()
 		processed_sent.append((start_token, start_token))
-		#processed_sent.append((start_token, start_token))
 		for word in sent:
 			if word[0] not in vocabulary or vocabulary[word[0]] <= 1:
 				processed_sent.append((unknown_token, word[1]))
 			else:
 				processed_sent.append(word)
 		processed_sent.append((end_token, end_token))
-		#processed_sent.append((end_token, end_token))
 		processed_corpus.append(processed_sent)
 	return processed_corpus
 
@@ -119,7 +94,6 @@ def MostCommonWordBaseline(test_set, vocabulary, confusion_sets):
         predicted_test_set.append(predicted_sent)
     return predicted_test_set
 
-
 def ComputeAccuracy(test_set, test_set_simulated, test_set_predicted):
     correct_sent_count = 0
     correct_word_count = 0
@@ -148,8 +122,8 @@ def ComputeAccuracy(test_set, test_set_simulated, test_set_predicted):
                 generated_error_count += 1
                 if test_set[i][j] == test_set_predicted[i][j]:
                     correct_word_count += 1
-    correction_accuracy = ((float)(correct_word_count) / (float)(generated_error_count)) * 100.00
-    print "Percent words corrected in test set is %.2f%%." %correction_accuracy
+    error_correction_accuracy = ((float)(correct_word_count) / (float)(generated_error_count)) * 100.00
+    print "Percent errors corrected in test set is %.2f%%." %error_correction_accuracy
 
 class BigramHMM:
     def __init__(self):
@@ -265,39 +239,33 @@ class ContextWords:
         self.ComputeContextProbs(training_set)
         #self.PruneContextWords()
 
-    def Test(self, test_set):
-        predicted_test_set = list()
-        for sent in test_set:
-            predicted_sent = list()
-            for i in xrange(0, len(sent)):
-                word = sent[i]
-                c_set = IsInConfusionSet(word, self.confusion_sets)
-                if c_set != None:
-                    c_dict = self.ConfusionSetToDict(c_set)
-                    for ambiguous_word in c_dict.keys():
-                        for j in xrange(i - self.k, i):
-                            if j not in xrange(0, len(sent)): break
-                            context_word = sent[j]
-                            bigram = (context_word, ambiguous_word)
-                            if bigram in self.context_probs and self.context_probs[bigram] != 0.0:
-                                c_dict[ambiguous_word] *= self.context_probs[bigram]
-                        for j in xrange(i + 1, i + 1 + self.k):
-                            if j not in xrange(0, len(sent)): break
-                            context_word = sent[j]
-                            bigram = (context_word, ambiguous_word)
-                            if bigram in self.context_probs and self.context_probs[bigram] != 0.0:
-                                c_dict[ambiguous_word] *= self.context_probs[bigram]
-                    max_prob = None
-                    predicted_word = None
-                    for ambiguous_word, prob in c_dict.iteritems():
-                        if prob > max_prob:
-                            max_prob = prob
-                            predicted_word = ambiguous_word
-                    predicted_sent.append(predicted_word)
-                else:
-                    predicted_sent.append(word)
-            predicted_test_set.append(predicted_sent)
-        return predicted_test_set
+    def Test(self, sent, i):
+        word = sent[i]
+        c_set = IsInConfusionSet(word, self.confusion_sets)
+        if c_set != None:
+            c_dict = self.ConfusionSetToDict(c_set)
+            for ambiguous_word in c_dict.keys():
+                for j in xrange(i - self.k, i):
+                    if j not in xrange(0, len(sent)): break
+                    context_word = sent[j]
+                    bigram = (context_word, ambiguous_word)
+                    if bigram in self.context_probs and self.context_probs[bigram] != 0.0:
+                        c_dict[ambiguous_word] *= self.context_probs[bigram]
+                for j in xrange(i + 1, i + 1 + self.k):
+                    if j not in xrange(0, len(sent)): break
+                    context_word = sent[j]
+                    bigram = (context_word, ambiguous_word)
+                    if bigram in self.context_probs and self.context_probs[bigram] != 0.0:
+                        c_dict[ambiguous_word] *= self.context_probs[bigram]
+            max_prob = None
+            predicted_word = None
+            for ambiguous_word, prob in c_dict.iteritems():
+                if prob > max_prob:
+                    max_prob = prob
+                    predicted_word = ambiguous_word
+            return predicted_word
+        else:
+            return word
 
     def ConfusionSetToDict(self, confusion_set):
         confusion_dict = defaultdict(float)
@@ -332,19 +300,20 @@ class HybridModel:
                         potential_sent[i] = ambiguous_word
                         (prob, tags) = self.bigram_pos_tagger.Test(potential_sent)
                         c_set_stats[ambiguous_word] = (prob, tags)
-                    #potential_tags = []
-                    #for ambiguous_word, stats in c_set_stats.iteritems():
-                    #    potential_tags.append(stats[1][i])
-                    #if potential_tags[1:] == potential_tags[:-1]:
-                        # use context words
-                    #else:
-                    best_prob = None
-                    best_word = None
+                    potential_tags = []
                     for ambiguous_word, stats in c_set_stats.iteritems():
-                        if stats[0] > best_prob:
-                            best_prob = stats[0]
-                            best_word = ambiguous_word
-                    predicted_sent.append(best_word)
+                        potential_tags.append(stats[1][i])
+                    if potential_tags[1:] == potential_tags[:-1]:
+                        predicted_word = self.context_words_spell_checker.Test(sent, i)
+                        predicted_sent.append(predicted_word)
+                    else:
+                        best_prob = None
+                        best_word = None
+                        for ambiguous_word, stats in c_set_stats.iteritems():
+                            if stats[0] > best_prob:
+                                best_prob = stats[0]
+                                best_word = ambiguous_word
+                        predicted_sent.append(best_word)
                 else:
                     predicted_sent.append(word)
             predicted_test_set.append(predicted_sent)
@@ -384,6 +353,7 @@ def main():
     hybrid = HybridModel(3, 10, vocabulary, pruned_confusion_sets)
     hybrid.Train(tagged_training_set_prep)
     predicted_test_set = hybrid.Test(test_set_prep_simulated)
+    print "--- Hybrid method accuracy ---"
     ComputeAccuracy(test_set_prep, test_set_prep_simulated, predicted_test_set)
 
 if __name__ == "__main__": 
