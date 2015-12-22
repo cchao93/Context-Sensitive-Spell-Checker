@@ -135,8 +135,24 @@ def Precision(test_set, test_set_simulated, test_set_predicted):
 
     return precision
 
-def recall(test_set, test_set_simulated, test_set_predicted):
-    pass
+def Recall(test_set, test_set_simulated, test_set_predicted):
+    tp = 0.0 
+    fn = 0.0
+    num_sents = len(test_set)
+    recall = 0.0
+
+    for i in xrange(0, num_sents):
+        predicted_sent = untag(test_set_predicted[i])
+        for j in xrange(2, len(test_set[i]) - 2):
+            if test_set[i][j] == test_set_simulated[i][j] and test_set[i][j] == predicted_sent[j]:
+                tp += 1
+            if test_set[i][j] == test_set_simulated[i][j] and test_set_simulated[i][j] == predicted_sent[j]:
+                fn += 1
+
+    recall = tp / (tp + fn)
+
+    return recall
+
 
 class BigramHMM:
     def __init__(self):
@@ -537,7 +553,7 @@ def main():
     print "%4.2f" % (100.0 * evalResult)
 
     print Precision(test_set_prep, predicted_test_set, predicted_tagged_test_set)
-    
+    print Recall(test_set_prep, predicted_test_set, predicted_tagged_test_set)
 
 if __name__ == "__main__": 
     main()
