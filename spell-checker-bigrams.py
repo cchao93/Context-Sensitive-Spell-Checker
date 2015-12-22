@@ -9,8 +9,7 @@ unknown_token = "<UNK>"
 start_token = "<S>"
 end_token = "</S>"
 
-def BuildConfusionSets(training_set):
-    """
+def BuildConfusionSets():
     confusion_sets = []
     txt_file = open("confusion_sets_large.dat", "r")
     for line in txt_file:
@@ -37,6 +36,16 @@ def BuildConfusionSets(training_set):
                         c_sets.append([sent[i], sent[j]])
     print c_sets
     return c_sets
+    """
+def PruneConfusionSets(vocabulary, confusion_sets):
+    pruned_sets = []
+    for c_set in confusion_sets:
+        pruned_c_set = []
+        for word in c_set:
+            if word in vocabulary and vocabulary[word] > 1:
+                pruned_c_set.append(word)
+        pruned_sets.append(pruned_c_set)
+    return pruned_sets
 
 def IsInConfusionSet(word, confusion_sets):
     for c_set in confusion_sets:
@@ -122,7 +131,7 @@ def ComputeAccuracy(test_set, test_set_simulated, test_set_predicted):
         if test_set[i] == test_set_predicted[i]:
             correct_sent_count += 1
     sent_accuracy = ((float)(correct_sent_count) / (float)(num_sents)) * 100.00
-    #print "Percent sentence accuracy in test set is %.2f%%." %sent_accuracy
+    print "Percent sentence accuracy in test set is %.2f%%." %sent_accuracy
     
     for i in xrange(0, num_sents):
         for j in xrange(1, (len(test_set[i]) - 1)):
@@ -130,7 +139,7 @@ def ComputeAccuracy(test_set, test_set_simulated, test_set_predicted):
             if test_set[i][j] == test_set_predicted[i][j]:
                 correct_word_count += 1
     word_accuracy = ((float)(correct_word_count) / (float)(num_words)) * 100.00
-    #print "Percent word accuracy in test set is %.2f%%." %word_accuracy
+    print "Percent word accuracy in test set is %.2f%%." %word_accuracy
 
     correct_word_count = 0
     for i in xrange(0, num_sents):
@@ -140,7 +149,7 @@ def ComputeAccuracy(test_set, test_set_simulated, test_set_predicted):
                 if test_set[i][j] == test_set_predicted[i][j]:
                     correct_word_count += 1
     correction_accuracy = ((float)(correct_word_count) / (float)(generated_error_count)) * 100.00
-    #print "Percent words corrected in test set is %.2f%%." %correction_accuracy
+    print "Percent words corrected in test set is %.2f%%." %correction_accuracy
 
 class BigramHMM:
     def __init__(self):
@@ -351,30 +360,31 @@ def main():
     tagged_test_set = treebank_tagged_sents[-3000:]
     
     vocabulary = BuildVocabulary(tagged_training_set)
+    confusion_sets = BuildConfusionSets()
+    pruned_confusion_sets = PruneConfusionSets(vocabulary, confusion_sets)
 
-    confusion_sets = BuildConfusionSets(UntagCorpus(tagged_training_set))
-    """
-    tagged_test_set_simulated = SimulateSpellingErrors(tagged_test_set, confusion_sets)
+    tagged_test_set_simulated = SimulateSpellingErrors(tagged_test_set, pruned_confusion_sets)
 
     tagged_training_set_prep = PreprocessTaggedCorpus(tagged_training_set, vocabulary)
     tagged_test_set_prep = PreprocessTaggedCorpus(tagged_test_set, vocabulary)
     tagged_test_set_prep_simulated = PreprocessTaggedCorpus(tagged_test_set_simulated, vocabulary)
+    
     training_set_prep = UntagCorpus(tagged_training_set_prep)
     test_set_prep = UntagCorpus(tagged_test_set_prep)
     test_set_prep_simulated = UntagCorpus(tagged_test_set_prep_simulated)
 
-    #print " ".join(training_set_prep[0])
-    #print " ".join(test_set_prep[0])
-    #print " ".join(test_set_prep_simulated[0])
+    print " ".join(training_set_prep[0])
+    print " ".join(test_set_prep[0])
+    print " ".join(test_set_prep_simulated[0])
 
-    test_set_predicted_baseline = MostCommonWordBaseline(test_set_prep_simulated, vocabulary, confusion_sets)
-    #print "--- Most common class baseline accuracy ---"
+    test_set_predicted_baseline = MostCommonWordBaseline(test_set_prep_simulated, vocabulary, pruned_confusion_sets)
+    print "--- Most common class baseline accuracy ---"
     ComputeAccuracy(test_set_prep, test_set_prep_simulated, test_set_predicted_baseline)
 
-    hybrid = HybridModel(3, 10, vocabulary, confusion_sets)
+    hybrid = HybridModel(3, 10, vocabulary, pruned_confusion_sets)
     hybrid.Train(tagged_training_set_prep)
     predicted_test_set = hybrid.Test(test_set_prep_simulated)
     ComputeAccuracy(test_set_prep, test_set_prep_simulated, predicted_test_set)
-    """
+
 if __name__ == "__main__": 
     main()
