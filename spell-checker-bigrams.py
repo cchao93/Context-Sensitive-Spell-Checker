@@ -3,18 +3,40 @@ from nltk.tag.util import untag
 import nltk
 from collections import defaultdict
 from random import randint
+from nltk.metrics.distance import edit_distance
 
 unknown_token = "<UNK>"
 start_token = "<S>"
 end_token = "</S>"
 
-
-def BuildConfusionSets():
+def BuildConfusionSets(training_set):
+    """
     confusion_sets = []
     txt_file = open("confusion_sets_large.dat", "r")
     for line in txt_file:
 		confusion_sets.append(line[:-1].split(", "))
     return confusion_sets
+    """
+    c_sets = []
+    for sent in training_set:
+        for i in xrange(0, len(sent) - 1):
+            for j in xrange(i + 1, len(sent)):
+                if edit_distance(sent[i], sent[j]) == 1:
+                    in_set = False;
+                    for k in xrange(0, len(c_sets)):
+                        if sent[i] in c_sets[k] and sent[j] in c_sets[k]:
+                            in_set = True
+                            break
+                        elif sent[i] in c_sets[k] and sent[j] not in c_sets[k]:
+                            c_sets[k].append(sent[j])
+                            break
+                        elif sent[j] in c_sets[k] and sent[i] not in c_sets[k]:
+                            c_sets[k].append(sent[i])
+                            break
+                    if in_set == False:
+                        c_sets.append([sent[i], sent[j]])
+    print c_sets
+    return c_sets
 
 def IsInConfusionSet(word, confusion_sets):
     for c_set in confusion_sets:
@@ -51,14 +73,14 @@ def PreprocessTaggedCorpus(corpus, vocabulary):
 	for sent in corpus:
 		processed_sent = list()
 		processed_sent.append((start_token, start_token))
-		processed_sent.append((start_token, start_token))
+		#processed_sent.append((start_token, start_token))
 		for word in sent:
 			if word[0] not in vocabulary or vocabulary[word[0]] <= 1:
 				processed_sent.append((unknown_token, word[1]))
 			else:
 				processed_sent.append(word)
 		processed_sent.append((end_token, end_token))
-		processed_sent.append((end_token, end_token))
+		#processed_sent.append((end_token, end_token))
 		processed_corpus.append(processed_sent)
 	return processed_corpus
 
@@ -89,9 +111,10 @@ def MostCommonWordBaseline(test_set, vocabulary, confusion_sets):
     return predicted_test_set
 
 
-def ComputeAccuracy(test_set, test_set_predicted):
+def ComputeAccuracy(test_set, test_set_simulated, test_set_predicted):
     correct_sent_count = 0
     correct_word_count = 0
+    generated_error_count = 0
     num_sents = len(test_set)
     num_words = 0
 
@@ -99,17 +122,27 @@ def ComputeAccuracy(test_set, test_set_predicted):
         if test_set[i] == test_set_predicted[i]:
             correct_sent_count += 1
     sent_accuracy = ((float)(correct_sent_count) / (float)(num_sents)) * 100.00
-    print "Percent sentence accuracy in test set is %.2f%%." %sent_accuracy
+    #print "Percent sentence accuracy in test set is %.2f%%." %sent_accuracy
     
     for i in xrange(0, num_sents):
-        for j in xrange(2, (len(test_set[i]) - 2)):
+        for j in xrange(1, (len(test_set[i]) - 1)):
             num_words += 1
             if test_set[i][j] == test_set_predicted[i][j]:
                 correct_word_count += 1
     word_accuracy = ((float)(correct_word_count) / (float)(num_words)) * 100.00
-    print "Percent word accuracy in test set is %.2f%%." %word_accuracy
+    #print "Percent word accuracy in test set is %.2f%%." %word_accuracy
 
-class TrigramHMM:
+    correct_word_count = 0
+    for i in xrange(0, num_sents):
+        for j in xrange(1, (len(test_set[i]) - 1)):
+            if test_set[i][j] != test_set_simulated[i][j]:
+                generated_error_count += 1
+                if test_set[i][j] == test_set_predicted[i][j]:
+                    correct_word_count += 1
+    correction_accuracy = ((float)(correct_word_count) / (float)(generated_error_count)) * 100.00
+    #print "Percent words corrected in test set is %.2f%%." %correction_accuracy
+
+class BigramHMM:
     def __init__(self):
         self.transitions = defaultdict(float)
         self.emissions = defaultdict(float)
@@ -122,56 +155,16 @@ class TrigramHMM:
                 unigram_counts[word[1]] += 1
         return unigram_counts
 
-    def GetBigramCounts(self, training_set):
-    	bigram_counts = defaultdict(int)
-    	for sent in training_set:
+    def EstimateTransitions(self, training_set):
+        unigram_counts = self.GetUnigramCounts(training_set)
+        for sent in training_set:
             prev = 0
             for curr in xrange(1, len(sent)):
                 bigram = (sent[prev][1], sent[curr][1])
-                bigram_counts[bigram] += 1
+                self.transitions[bigram] += 1
                 prev += 1
-        return bigram_counts
-
-    def EstimateTransitions(self, training_set):
-        bigram_counts = self.GetBigramCounts(training_set)
-        for sent in training_set:
-            prev = 1
-            prev2 = 0
-            for curr in xrange(2, len(sent)):
-                trigram = (sent[prev2][1], sent[prev][1], sent[curr][1])
-                self.transitions[trigram] += 1
-                prev += 1
-                prev2 += 1
-        for trigram, freq in self.transitions.iteritems():
-            bigram = (trigram[0], trigram[1])
-            self.transitions[trigram] = (float)(freq) / (float)(bigram_counts[bigram])
-
-	"""
-    def EstimateTransitions(self, training_set):
-        bigram_counts = defaultdict(int)
-        unigram_counts = defaultdict(int)
-        for sent in training_set:
-            prev = 1
-            prev2 = 0
-            for curr in xrange(2, len(sent)):
-                trigram = (sent[prev2][1], sent[prev][1], sent[curr][1])
-                self.transitions[trigram] += 1
-                bigram = (sent[prev2][1], sent[prev][1])
-                bigram_counts[bigram] += 1
-                unigram = sent[prev2][1]
-                unigram_counts[unigram] += 1
-                prev += 1
-                prev2 += 1
-            bigram_counts[(sent[len(sent) - 2][1], sent[len(sent) - 1][1])] += 1
-            unigram_counts[sent[len(sent) - 2][1]] += 1
-            unigram_counts[sent[len(sent) - 1][1]] += 1
-        word_count = 0
-        for key in unigram_counts.keys():
-            word_count += unigram_counts[key]
-        for trigram, freq in self.transitions.iteritems():
-            bigram = (trigram[0], trigram[1])
-            self.transitions[trigram] = -1 #(0.4 * ((float)(freq) / (float)(bigram_counts[bigram]))) + (0.3 * ((float)(bigram_counts[(trigram[1], trigram[2])]) / (float)(unigram_counts[trigram[1]]))) + (0.3 * ((float)(unigram_counts[trigram[2]]) / (float)(word_count)))
-	"""
+        for bigram, freq in self.transitions.iteritems():
+            self.transitions[bigram] = (float)(freq) / (float)(unigram_counts[bigram[0]])
 
     def EstimateEmissions(self, training_set):
         unigram_counts = self.GetUnigramCounts(training_set)
@@ -188,55 +181,43 @@ class TrigramHMM:
                     self.dictionary[word[0]].append(word[1])
 
     def Train(self, training_set):
-    	self.EstimateTransitions(training_set)
-    	self.EstimateEmissions(training_set)
-    	self.ComputeTagDictionary(training_set)
+        self.EstimateTransitions(training_set)
+        self.EstimateEmissions(training_set)
+        self.ComputeTagDictionary(training_set)
 
-    def Viterbi(self, sent):
+    def Test(self, sent):
         T = len(sent)
         trellis = [{} for i in range(T)]
         backptr = [{} for i in range(T)]
 
-        trellis[0][(start_token, start_token)] = 1.0
-        backptr[0][(start_token, start_token)] = None
+        trellis[0][start_token] = 1.0
+        backptr[0][start_token] = None
 
         for i in range(1, T):
-            prev_word = sent[i - 1]
-            prev_tags = self.dictionary[prev_word]
             word = sent[i]
             tags = self.dictionary[word]
-            assert(prev_tags)
             assert(tags)
-            for prev_tag in prev_tags:
-            	for tag in tags:
-                	max_path_prob = None
-                	max_path_prev2_tag = None
-                	for (prev2_tag, prev1_tag), prev_path_prob in trellis[i - 1].iteritems():
-                		if prev_tag == prev1_tag:
-                  			path_prob = prev_path_prob * self.transitions[(prev2_tag, prev_tag, tag)] * self.emissions[(word, tag)]
-                   			if path_prob > max_path_prob and (max_path_prob or path_prob != float("-inf")):
-								max_path_prob = path_prob
-                       			max_path_prev2_tag = prev2_tag
-                	trellis[i][(prev_tag, tag)] = max_path_prob
-                	backptr[i][(prev_tag, tag)] = max_path_prev2_tag
-        #best_path_prob = trellis[T - 1][end_token]
+            for tag in tags:
+                max_path_prob = None
+                max_path_prev_tag = None
+                for prev_tag, prev_path_prob in trellis[i-1].iteritems():
+                    path_prob = prev_path_prob * self.transitions[(prev_tag, tag)] * self.emissions[(word, tag)]
+                    if path_prob > max_path_prob and (max_path_prob or path_prob != float('-inf')):
+                        max_path_prob = path_prob
+                        max_path_prev_tag = prev_tag
+                trellis[i][tag] = max_path_prob
+                backptr[i][tag] = max_path_prev_tag
+
+        best_path_prob = trellis[T-1][end_token]
         best_path = self.Backtrace(sent, backptr)
-        return best_path
+        return (best_path_prob, best_path)
 
-    def Backtrace(self, sent, backptr, index = None, prev_tag = end_token, tag = end_token):
-        if index == 0:
-        	return [tag]
-        if index == None:
-        	index = len(sent) - 1
-        prev2_tag = backptr[index][(prev_tag, tag)]
-        prev_best_path = self.Backtrace(sent, backptr, index - 1, prev2_tag, prev_tag)
+    def Backtrace(self, sent, backptr, index = None, tag = end_token):
+        if index == 0: return [tag]
+        if index == None: index = len(sent) - 1
+        prev_tag = backptr[index][tag]
+        prev_best_path = self.Backtrace(sent, backptr, index - 1, prev_tag)
         return prev_best_path + [tag]
-
-    def Test(self, test_set):
-        predicted_test_set = list()
-        for sent in test_set:
-            predicted_test_set.append(zip(untag(sent), self.Viterbi(untag(sent))))
-        return predicted_test_set
 
 class ContextWords:
     def __init__(self, k, min_occurrences, vocabulary, confusion_sets):
@@ -270,9 +251,10 @@ class ContextWords:
                 del self.context_probs[bigram]
 
     #def PruneContextWords(self):
-    
+
     def Train(self, training_set):
         self.ComputeContextProbs(training_set)
+        #self.PruneContextWords()
 
     def Test(self, test_set):
         predicted_test_set = list()
@@ -317,7 +299,48 @@ class ContextWords:
             confusion_dict[word] = (float)(self.vocabulary[word]) / (float)(word_count)
         return confusion_dict
 
+class HybridModel:
+    def __init__(self, k, min_occurrences, vocabulary, confusion_sets):
+        self.confusion_sets = confusion_sets
+        self.bigram_pos_tagger = BigramHMM()
+        self.context_words_spell_checker = ContextWords(3, 10, vocabulary, confusion_sets)
 
+    def Train(self, training_set):
+        self.bigram_pos_tagger.Train(training_set)
+        self.context_words_spell_checker.Train(UntagCorpus(training_set))
+    
+    def Test(self, test_set):
+        predicted_test_set = []
+        for sent in test_set:
+            predicted_sent = []
+            for i in xrange(0, len(sent)):
+                word = sent[i]
+                c_set = IsInConfusionSet(word, self.confusion_sets)
+                c_set_stats = dict()
+                if c_set != None:
+                    for ambiguous_word in c_set:
+                        potential_sent = sent
+                        potential_sent[i] = ambiguous_word
+                        (prob, tags) = self.bigram_pos_tagger.Test(potential_sent)
+                        c_set_stats[ambiguous_word] = (prob, tags)
+                    #potential_tags = []
+                    #for ambiguous_word, stats in c_set_stats.iteritems():
+                    #    potential_tags.append(stats[1][i])
+                    #if potential_tags[1:] == potential_tags[:-1]:
+                        # use context words
+                    #else:
+                    best_prob = None
+                    best_word = None
+                    for ambiguous_word, stats in c_set_stats.iteritems():
+                        if stats[0] > best_prob:
+                            best_prob = stats[0]
+                            best_word = ambiguous_word
+                    predicted_sent.append(best_word)
+                else:
+                    predicted_sent.append(word)
+            predicted_test_set.append(predicted_sent)
+        return predicted_test_set
+    
 def main():
     """    
     tagged_training_set = brown.tagged_sents()[:50000]
@@ -328,45 +351,30 @@ def main():
     tagged_test_set = treebank_tagged_sents[-3000:]
     
     vocabulary = BuildVocabulary(tagged_training_set)
-    confusion_sets = BuildConfusionSets()
+
+    confusion_sets = BuildConfusionSets(UntagCorpus(tagged_training_set))
+    """
+    tagged_test_set_simulated = SimulateSpellingErrors(tagged_test_set, confusion_sets)
 
     tagged_training_set_prep = PreprocessTaggedCorpus(tagged_training_set, vocabulary)
     tagged_test_set_prep = PreprocessTaggedCorpus(tagged_test_set, vocabulary)
-    tagged_test_set_prep_simulated = SimulateSpellingErrors(tagged_test_set_prep, confusion_sets)
+    tagged_test_set_prep_simulated = PreprocessTaggedCorpus(tagged_test_set_simulated, vocabulary)
     training_set_prep = UntagCorpus(tagged_training_set_prep)
     test_set_prep = UntagCorpus(tagged_test_set_prep)
     test_set_prep_simulated = UntagCorpus(tagged_test_set_prep_simulated)
 
-    print "--- 1 - error rate ---"
-    ComputeAccuracy(test_set_prep, test_set_prep_simulated)
-
-    print " ".join(training_set_prep[0])
-    print " ".join(test_set_prep_simulated[0])
+    #print " ".join(training_set_prep[0])
+    #print " ".join(test_set_prep[0])
+    #print " ".join(test_set_prep_simulated[0])
 
     test_set_predicted_baseline = MostCommonWordBaseline(test_set_prep_simulated, vocabulary, confusion_sets)
-    print "--- Most common class baseline accuracy ---"
-    ComputeAccuracy(test_set_prep, test_set_predicted_baseline)
+    #print "--- Most common class baseline accuracy ---"
+    ComputeAccuracy(test_set_prep, test_set_prep_simulated, test_set_predicted_baseline)
+
+    hybrid = HybridModel(3, 10, vocabulary, confusion_sets)
+    hybrid.Train(tagged_training_set_prep)
+    predicted_test_set = hybrid.Test(test_set_prep_simulated)
+    ComputeAccuracy(test_set_prep, test_set_prep_simulated, predicted_test_set)
     """
-    trigram_pos_tagger = TrigramHMM()
-    trigram_pos_tagger.Train(tagged_training_set_prep)
-    predicted_tagged_test_set = trigram_pos_tagger.Test(tagged_test_set_prep)
-    print "--- Trigram HMM accuracy ---"
-    ComputeAccuracy(tagged_test_set_prep, predicted_tagged_test_set)
-
-    trainingSents = treebank.tagged_sents()[:50000]
-    testSents = treebank.tagged_sents()[-3000:]
-
-    trigramTagger = nltk.TrigramTagger(trainingSents)
-    evalResult = trigramTagger.evaluate(testSents)
-    print "--- NLTK TrigramTagger accuracy ---"
-    print "%4.2f" % (100.0 * evalResult)
-    """
-    context_words_spell_checker = ContextWords(3, 10, vocabulary, confusion_sets)
-    context_words_spell_checker.Train(training_set_prep)
-    predicted_test_set = context_words_spell_checker.Test(test_set_prep_simulated)
-    print "--- Context Words accuracy ---"
-    ComputeAccuracy(test_set_prep, predicted_test_set)
-
-
 if __name__ == "__main__": 
     main()
