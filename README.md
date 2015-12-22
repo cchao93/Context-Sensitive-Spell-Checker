@@ -4,15 +4,12 @@ Thing to do before writing that paper (in the order of urgency)
 
 MUST BE DONE
 - Prune confusion sets & context words using the method Elif talked about and see if that
-   improves accuracy
-- Stopwords (should include start, end, and unknown tokens)
+  improves accuracy
 - Precision & Recall
-- Use various data sources & take measurements for everything we've done for the paper
+- Use various data sources & take measurements for everything we've done for the paper (k, min-threshold, pruning, etc)
 
 OPTIONAL
 - Get trigram Viterbi to work
-- Play around with different k and min-threshold values and see if that
-  improves accuracy
 - Implement collocations & combine it with context words using a Bayesian
   classifier
 - Implement word trigrams
