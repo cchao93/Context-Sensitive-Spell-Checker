@@ -208,11 +208,12 @@ class BigramHMM:
         return prev_best_path + [tag]
 
 class ContextWords:
-    def __init__(self, k, min_occurrences, vocabulary, confusion_sets):
+    def __init__(self, k, min_occurrences, vocabulary, confusion_sets, stop_words):
         self.k = k
         self.min_occurrences = min_occurrences
         self.vocabulary = vocabulary
         self.confusion_sets = confusion_sets
+        self.stop_words = stop_words
         self.context_probs = defaultdict(float)
 
     def ComputeContextProbs(self, training_set):
@@ -238,11 +239,17 @@ class ContextWords:
         for bigram in to_delete:
                 del self.context_probs[bigram]
 
-    #def PruneContextWords(self):
+    def PruneContextWords(self):
+        to_delete = []
+        for bigram, freq in self.context_probs.iteritems():
+            if bigram[0] in self.stop_words:
+                to_delete.append(bigram)
+        for bigram in to_delete:
+            del self.context_probs[bigram]
 
     def Train(self, training_set):
         self.ComputeContextProbs(training_set)
-        #self.PruneContextWords()
+        self.PruneContextWords()
 
     def Test(self, sent, i):
         word = sent[i]
@@ -282,10 +289,10 @@ class ContextWords:
         return confusion_dict
 
 class HybridModel:
-    def __init__(self, k, min_occurrences, vocabulary, confusion_sets):
+    def __init__(self, k, min_occurrences, vocabulary, confusion_sets, stop_words):
         self.confusion_sets = confusion_sets
         self.bigram_pos_tagger = BigramHMM()
-        self.context_words_spell_checker = ContextWords(3, 10, vocabulary, confusion_sets)
+        self.context_words_spell_checker = ContextWords(3, 10, vocabulary, confusion_sets, stop_words)
 
     def Train(self, training_set):
         self.bigram_pos_tagger.Train(training_set)
@@ -357,7 +364,7 @@ def main():
     print "--- Most common class baseline accuracy ---"
     ComputeAccuracy(test_set_prep, test_set_prep_simulated, test_set_predicted_baseline)
 
-    hybrid = HybridModel(3, 10, vocabulary, pruned_confusion_sets)
+    hybrid = HybridModel(3, 10, vocabulary, pruned_confusion_sets, stop_words)
     hybrid.Train(tagged_training_set_prep)
     predicted_test_set = hybrid.Test(test_set_prep_simulated)
     print "--- Hybrid method accuracy ---"
