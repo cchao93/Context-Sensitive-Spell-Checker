@@ -9,6 +9,7 @@ Thing to do before writing that paper (in the order of urgency, * = must be done
 -* Precision & Recall
 -* Use various data sources & take measurements for everything we've done for the paper
 
+
 - Get trigram Viterbi to work
 - Play around with different k and min-threshold values and see if that
   improves accuracy
