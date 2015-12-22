@@ -46,6 +46,14 @@ def BuildVocabulary(corpus):
 			vocabulary[word] += 1
 	return vocabulary
 
+def AddConfusionSetsToVocabulary(confusion_sets):
+    vocabulary = defaultdict(int)
+    for c_set in confusion_sets:
+        for word in c_set:
+            vocabulary[word] += 1
+
+    return vocabulary
+
 def PreprocessTaggedCorpus(corpus, vocabulary):
 	processed_corpus = list()
 	for sent in corpus:
@@ -108,6 +116,12 @@ def ComputeAccuracy(test_set, test_set_predicted):
                 correct_word_count += 1
     word_accuracy = ((float)(correct_word_count) / (float)(num_words)) * 100.00
     print "Percent word accuracy in test set is %.2f%%." %word_accuracy
+
+def Precision(test_set, test_set_predicted):
+    correct_sent_count = 0
+    correct_word_count = 0
+    num_sents = len(test_set)
+    num_words = 0
 
 class BigramHMM:
     def __init__(self):
@@ -449,6 +463,8 @@ def main():
     
     vocabulary = BuildVocabulary(tagged_training_set)
     confusion_sets = BuildConfusionSets()
+    #vocabulary_confusion_sets = AddConfusionSetsToVocabulary(confusion_sets)
+    #vocabulary = dict(vocabulary_training.items() + vocabulary_confusion_sets.items())
 
     tagged_training_set_prep = PreprocessTaggedCorpus(tagged_training_set, vocabulary)
     tagged_test_set_prep = PreprocessTaggedCorpus(tagged_test_set, vocabulary)
