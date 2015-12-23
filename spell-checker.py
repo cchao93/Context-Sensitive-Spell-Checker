@@ -3,6 +3,7 @@ from nltk.tag.util import untag
 import nltk
 from collections import defaultdict
 from random import randint
+from math import log
 
 unknown_token = "<UNK>"
 start_token = "<S>"
@@ -96,7 +97,6 @@ def MostCommonWordBaseline(test_set, vocabulary, confusion_sets):
         predicted_test_set.append(predicted_sent)
     return predicted_test_set
 
-
 def ComputeAccuracy(test_set, test_set_predicted):
     correct_sent_count = 0
     correct_word_count = 0
@@ -120,8 +120,8 @@ def ComputeAccuracy(test_set, test_set_predicted):
 def Precision(test_set, test_set_simulated, test_set_predicted):
     tp = 0.0
     fp = 0.0
-    num_sents = len(test_set)
     precision = 0.0
+    num_sents = len(test_set)
 
     for i in xrange(0, num_sents):
         predicted_sent = untag(test_set_predicted[i])
@@ -137,22 +137,20 @@ def Precision(test_set, test_set_simulated, test_set_predicted):
 
 def Recall(test_set, test_set_simulated, test_set_predicted):
     tp = 0.0 
-    fn = 0.0
-    num_sents = len(test_set)
+    num_words = 0.0
     recall = 0.0
+    num_sents = len(test_set)
 
     for i in xrange(0, num_sents):
         predicted_sent = untag(test_set_predicted[i])
         for j in xrange(2, len(test_set[i]) - 2):
+            num_words += 1
             if test_set[i][j] == test_set_simulated[i][j] and test_set[i][j] == predicted_sent[j]:
                 tp += 1
-            if test_set[i][j] == test_set_simulated[i][j] and test_set_simulated[i][j] == predicted_sent[j]:
-                fn += 1
 
-    recall = tp / (tp + fn)
+    recall = tp / num_words
 
     return recall
-
 
 class BigramHMM:
     def __init__(self):
@@ -378,7 +376,7 @@ class TrigramHMM:
                        			max_path_prev2_tag = prev2_tag
                 	trellis[i][(prev_tag, tag)] = max_path_prob
                 	backptr[i][(prev_tag, tag)] = max_path_prev2_tag
-        #best_path_prob = trellis[T - 1][end_token]
+
         best_path = self.Backtrace(sent, backptr)
         return best_path
 
@@ -410,6 +408,7 @@ class ContextWords:
         self.vocabulary = vocabulary
         self.confusion_sets = confusion_sets
         self.context_probs = defaultdict(float)
+        self.idfs = defaultdict(float)
 
     def ComputeContextProbs(self, training_set):
         for sent in training_set:
@@ -419,11 +418,11 @@ class ContextWords:
                     for j in xrange(i - self.k, i):
                         if j not in xrange(0, len(sent)): break
                         context_word = sent[j]
-                        self.context_probs[(context_word, word)] += 1
+                        self.context_probs[(context_word, word)] += 1 #self.idfs[context_word]
                     for j in xrange(i + 1, i + 1 + self.k):
                         if j not in xrange(0, len(sent)): break
                         context_word = sent[j]
-                        self.context_probs[(context_word, word)] += 1
+                        self.context_probs[(context_word, word)] += 1 #self.idfs[context_word]
         to_delete = []
         for bigram, freq in self.context_probs.iteritems():
             word_count = self.vocabulary[bigram[1]]
@@ -433,9 +432,15 @@ class ContextWords:
                 self.context_probs[bigram] = (float)(freq) / (float)(word_count)
         for bigram in to_delete:
                 del self.context_probs[bigram]
+    def IdfContextWords(self, test_set):
+        num_sents = len(test_set)
 
-    #def PruneContextWords(self):
-    
+        for word, count in self.vocabulary.iteritems():
+            if count != 0:
+                self.idfs[word] = log((float)(num_sents) / count)
+            else:
+                self.idfs[word] = 0.0
+
     def Train(self, training_set):
         self.ComputeContextProbs(training_set)
 
@@ -482,7 +487,6 @@ class ContextWords:
             confusion_dict[word] = (float)(self.vocabulary[word]) / (float)(word_count)
         return confusion_dict
 
-
 def main():
     """    
     tagged_training_set = brown.tagged_sents()[:50000]
@@ -494,8 +498,6 @@ def main():
     
     vocabulary = BuildVocabulary(tagged_training_set)
     confusion_sets = BuildConfusionSets()
-    #vocabulary_confusion_sets = AddConfusionSetsToVocabulary(confusion_sets)
-    #vocabulary = dict(vocabulary_training.items() + vocabulary_confusion_sets.items())
 
     tagged_training_set_prep = PreprocessTaggedCorpus(tagged_training_set, vocabulary)
     tagged_test_set_prep = PreprocessTaggedCorpus(tagged_test_set, vocabulary)
@@ -515,9 +517,11 @@ def main():
 
     context_words_spell_checker = ContextWords(3, 10, vocabulary, confusion_sets)
     context_words_spell_checker.Train(training_set_prep)
+    context_words_spell_checker.IdfContextWords(test_set_prep_simulated)
     predicted_test_set = context_words_spell_checker.Test(test_set_prep_simulated)
     print "--- Context Words accuracy ---"
     ComputeAccuracy(test_set_prep, predicted_test_set)
+
 
     """
     trigram_pos_tagger = TrigramHMM()
@@ -552,8 +556,8 @@ def main():
     print "--- NLTK TrigramTagger accuracy ---"
     print "%4.2f" % (100.0 * evalResult)
 
-    print Precision(test_set_prep, predicted_test_set, predicted_tagged_test_set)
-    print Recall(test_set_prep, predicted_test_set, predicted_tagged_test_set)
+    print "Precision: " + str(Precision(test_set_prep, predicted_test_set, predicted_tagged_test_set))
+    print "Recall: " + str(Recall(test_set_prep, predicted_test_set, predicted_tagged_test_set))
 
 if __name__ == "__main__": 
     main()
