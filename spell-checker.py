@@ -126,9 +126,9 @@ def Precision(test_set, test_set_simulated, test_set_predicted):
     for i in xrange(0, num_sents):
         predicted_sent = untag(test_set_predicted[i])
         for j in xrange(2, len(test_set[i]) - 2):
-            if test_set[i][j] == test_set_simulated[i][j] and test_set[i][j] == predicted_sent[j]:
+            if test_set[i][j] == test_set_simulated[i][j]:
                 tp += 1
-            if test_set[i][j] != test_set_simulated[i][j] and test_set[i][j] == predicted_sent[j]:
+            if test_set[i][j] != test_set_simulated[i][j]:
                 fp += 1
 
     precision = tp / (tp + fp)
@@ -418,11 +418,11 @@ class ContextWords:
                     for j in xrange(i - self.k, i):
                         if j not in xrange(0, len(sent)): break
                         context_word = sent[j]
-                        self.context_probs[(context_word, word)] += 1 #self.idfs[context_word]
+                        self.context_probs[(context_word, word)] += self.idfs[context_word]
                     for j in xrange(i + 1, i + 1 + self.k):
                         if j not in xrange(0, len(sent)): break
                         context_word = sent[j]
-                        self.context_probs[(context_word, word)] += 1 #self.idfs[context_word]
+                        self.context_probs[(context_word, word)] += self.idfs[context_word]
         to_delete = []
         for bigram, freq in self.context_probs.iteritems():
             word_count = self.vocabulary[bigram[1]]
@@ -432,6 +432,7 @@ class ContextWords:
                 self.context_probs[bigram] = (float)(freq) / (float)(word_count)
         for bigram in to_delete:
                 del self.context_probs[bigram]
+
     def IdfContextWords(self, test_set):
         num_sents = len(test_set)
 
