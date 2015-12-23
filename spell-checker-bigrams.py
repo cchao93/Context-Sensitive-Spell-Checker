@@ -10,6 +10,7 @@ from nltk.corpus import brown, treebank
 from nltk.tag.util import untag
 from collections import defaultdict
 from random import randint
+from math import log
 
 unknown_token = "<UNK>"
 start_token = "<S>"
@@ -237,6 +238,7 @@ class ContextWords:
         self.confusion_sets = confusion_sets
         self.stop_words = stop_words
         self.context_probs = defaultdict(float)
+        self.idfs = defaultdict(float)
 
     def ComputeContextProbs(self, training_set):
         for sent in training_set:
@@ -257,7 +259,8 @@ class ContextWords:
             if freq < self.min_occurrences or (word_count - freq) < self.min_occurrences:
                 to_delete.append(bigram)
             else:
-                self.context_probs[bigram] = (float)(freq) / (float)(word_count)
+                self.IdfContextWords(bigram, training_set)
+                self.context_probs[bigram] /= (float)(word_count)
         for bigram in to_delete:
                 del self.context_probs[bigram]
 
@@ -269,7 +272,23 @@ class ContextWords:
         for bigram in to_delete:
             del self.context_probs[bigram]
 
+    def IdfContextWords(self, bigram, training_set):
+        num_sents = len(training_set)
+        num_sents_w_bigram = 0
+        for sent in training_set:
+            if bigram[0] in sent and bigram[1] in sent: #
+                num_sents_w_bigram += 1
+        self.context_probs[bigram] *= log((float)(num_sents) / (float)(num_sents_w_bigram)) #
+        """
+        for word, count in self.vocabulary.iteritems():
+            if count != 0:
+                self.idfs[word] = log((float)(num_sents) / count)
+            else:
+                self.idfs[word] = 0.0
+        """
+
     def Train(self, training_set):
+        #self.IdfContextWords(training_set)
         self.ComputeContextProbs(training_set)
         self.PruneContextWords()
 
