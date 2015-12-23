@@ -100,35 +100,23 @@ def MostCommonWordBaseline(test_set, vocabulary, confusion_sets):
     return predicted_test_set
 
 def ComputeAccuracy(test_set, test_set_simulated, test_set_predicted):
-    correct_sent_count = 0
-    correct_word_count = 0
+    corrected_error_count = 0
+    detected_error_count = 0
     generated_error_count = 0
     num_sents = len(test_set)
-    num_words = 0
 
-    for i in xrange(0, num_sents):
-        if test_set[i] == test_set_predicted[i]:
-            correct_sent_count += 1
-    sent_accuracy = ((float)(correct_sent_count) / (float)(num_sents)) * 100.00
-    print "Percent sentence accuracy in test set is %.2f%%." %sent_accuracy
-    
-    for i in xrange(0, num_sents):
-        for j in xrange(1, (len(test_set[i]) - 1)):
-            num_words += 1
-            if test_set[i][j] == test_set_predicted[i][j]:
-                correct_word_count += 1
-    word_accuracy = ((float)(correct_word_count) / (float)(num_words)) * 100.00
-    print "Percent word accuracy in test set is %.2f%%." %word_accuracy
-
-    correct_word_count = 0
     for i in xrange(0, num_sents):
         for j in xrange(1, (len(test_set[i]) - 1)):
             if test_set[i][j] != test_set_simulated[i][j]:
                 generated_error_count += 1
+                if test_set_simulated[i][j] != test_set_predicted[i][j]:
+                    detected_error_count += 1
                 if test_set[i][j] == test_set_predicted[i][j]:
-                    correct_word_count += 1
-    error_correction_accuracy = ((float)(correct_word_count) / (float)(generated_error_count)) * 100.00
-    print "Percent errors corrected in test set is %.2f%%." %error_correction_accuracy
+                    corrected_error_count += 1
+    detection_hit_rate = ((float)(detected_error_count) / (float)(generated_error_count)) * 100.00                    
+    correction_hit_rate = ((float)(corrected_error_count) / (float)(generated_error_count)) * 100.00
+    print "Percent errors detected in test set is %.2f%%." %detection_hit_rate
+    print "Percent errors corrected in test set is %.2f%%." %correction_hit_rate
 
 class BigramHMM:
     def __init__(self):
