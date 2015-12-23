@@ -1,3 +1,10 @@
+""" Victor Chia-Chi Chao, Max Cohen
+    COMP150 Natural Language Processing
+    Final Project
+    Context-sensitive Spell Checker
+    12/22/15
+"""
+
 import nltk
 from nltk.corpus import brown, treebank
 from nltk.tag.util import untag
@@ -119,7 +126,8 @@ def ComputeAccuracy(test_set, test_set_simulated, test_set_predicted):
     print "Percent errors corrected in test set is %.2f%%." %correction_hit_rate
 
 class BigramHMM:
-    def __init__(self):
+    def __init__(self, confusion_sets):
+        self.confusion_sets = confusion_sets
         self.transitions = defaultdict(float)
         self.emissions = defaultdict(float)
         self.dictionary = defaultdict(lambda:list())
@@ -160,6 +168,32 @@ class BigramHMM:
         self.EstimateTransitions(training_set)
         self.EstimateEmissions(training_set)
         self.ComputeTagDictionary(training_set)
+
+    def TestCorpus(self, test_set):
+        predicted_test_set = []
+        for sent in test_set:
+            predicted_sent = []
+            for i in xrange(0, len(sent)):
+                word = sent[i]
+                c_set = IsInConfusionSet(word, self.confusion_sets)
+                c_set_stats = dict()
+                if c_set != None:
+                    for ambiguous_word in c_set:
+                        potential_sent = sent
+                        potential_sent[i] = ambiguous_word
+                        (prob, tags) = self.Test(potential_sent)
+                        c_set_stats[ambiguous_word] = (prob, tags)
+                    best_prob = None
+                    best_word = None
+                    for ambiguous_word, stats in c_set_stats.iteritems():
+                        if stats[0] > best_prob:
+                            best_prob = stats[0]
+                            best_word = ambiguous_word
+                    predicted_sent.append(best_word)
+                else:
+                    predicted_sent.append(word)
+            predicted_test_set.append(predicted_sent)
+        return predicted_test_set
 
     def Test(self, sent):
         T = len(sent)
@@ -239,6 +273,16 @@ class ContextWords:
         self.ComputeContextProbs(training_set)
         self.PruneContextWords()
 
+    def TestCorpus(self, test_set):
+        predicted_test_set = []
+        for sent in test_set:
+            predicted_sent = []
+            for i in xrange(0, len(sent)):
+                predicted_word = self.Test(sent, i)
+                predicted_sent.append(predicted_word)
+            predicted_test_set.append(predicted_sent)
+        return predicted_test_set
+
     def Test(self, sent, i):
         word = sent[i]
         c_set = IsInConfusionSet(word, self.confusion_sets)
@@ -279,7 +323,7 @@ class ContextWords:
 class HybridModel:
     def __init__(self, k, min_occurrences, vocabulary, confusion_sets, stop_words):
         self.confusion_sets = confusion_sets
-        self.bigram_pos_tagger = BigramHMM()
+        self.bigram_pos_tagger = BigramHMM(confusion_sets)
         self.context_words_spell_checker = ContextWords(3, 10, vocabulary, confusion_sets, stop_words)
 
     def Train(self, training_set):
@@ -331,7 +375,6 @@ def main():
     vocabulary = BuildVocabulary(tagged_training_set)
     confusion_sets = BuildConfusionSets()
     pruned_confusion_sets = PruneConfusionSets(vocabulary, confusion_sets)
-
     stop_words = BuildStopWordsList()
 
     tagged_test_set_simulated = SimulateSpellingErrors(tagged_test_set, pruned_confusion_sets)
@@ -344,13 +387,21 @@ def main():
     test_set_prep = UntagCorpus(tagged_test_set_prep)
     test_set_prep_simulated = UntagCorpus(tagged_test_set_prep_simulated)
 
-    print " ".join(training_set_prep[0])
-    print " ".join(test_set_prep[0])
-    print " ".join(test_set_prep_simulated[0])
-
-    test_set_predicted_baseline = MostCommonWordBaseline(test_set_prep_simulated, vocabulary, pruned_confusion_sets)
+    predicted_test_set = MostCommonWordBaseline(test_set_prep_simulated, vocabulary, pruned_confusion_sets)
     print "--- Most common class baseline accuracy ---"
-    ComputeAccuracy(test_set_prep, test_set_prep_simulated, test_set_predicted_baseline)
+    ComputeAccuracy(test_set_prep, test_set_prep_simulated, predicted_test_set)
+
+    bigram_pos_tagger = BigramHMM(pruned_confusion_sets)
+    bigram_pos_tagger.Train(tagged_training_set_prep)
+    predicted_test_set = bigram_pos_tagger.TestCorpus(test_set_prep_simulated)
+    print "--- POS bigram method accuracy ---"
+    ComputeAccuracy(test_set_prep, test_set_prep_simulated, predicted_test_set)
+
+    context_words = ContextWords(3, 10, vocabulary, pruned_confusion_sets, stop_words)
+    context_words.Train(training_set_prep)
+    predicted_test_set = context_words.TestCorpus(test_set_prep_simulated)
+    print "--- Context words method accuracy ---"
+    ComputeAccuracy(test_set_prep, test_set_prep_simulated, predicted_test_set)
 
     hybrid = HybridModel(3, 10, vocabulary, pruned_confusion_sets, stop_words)
     hybrid.Train(tagged_training_set_prep)
