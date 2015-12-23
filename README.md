@@ -3,9 +3,6 @@
 Thing to do before writing that paper (in the order of urgency)
 
 MUST BE DONE
-- Prune confusion sets & context words using the method Elif talked about and see if that
-  improves accuracy
-- Precision & Recall
 - Use various data sources & take measurements for everything we've done for the paper (k, min-threshold, pruning, etc)
 
 OPTIONAL

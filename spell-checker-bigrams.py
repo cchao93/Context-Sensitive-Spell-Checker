@@ -107,6 +107,11 @@ def MostCommonWordBaseline(test_set, vocabulary, confusion_sets):
         predicted_test_set.append(predicted_sent)
     return predicted_test_set
 
+def PrintStats(test_set, test_set_simulated, test_set_predicted):
+    ComputeAccuracy(test_set, test_set_simulated, test_set_predicted)
+    ComputePrecision(test_set, test_set_simulated, test_set_predicted)
+    ComputeRecall(test_set, test_set_simulated, test_set_predicted)
+
 def ComputeAccuracy(test_set, test_set_simulated, test_set_predicted):
     corrected_error_count = 0
     detected_error_count = 0
@@ -125,6 +130,33 @@ def ComputeAccuracy(test_set, test_set_simulated, test_set_predicted):
     correction_hit_rate = ((float)(corrected_error_count) / (float)(generated_error_count)) * 100.00
     print "Percent errors detected in test set is %.2f%%." %detection_hit_rate
     print "Percent errors corrected in test set is %.2f%%." %correction_hit_rate
+
+def ComputePrecision(test_set, test_set_simulated, test_set_predicted):
+    tp = 0.0
+    fp = 0.0
+    precision = 0.0
+    num_sents = len(test_set)
+    for i in xrange(0, num_sents):
+        for j in xrange(2, len(test_set[i]) - 2):
+            if test_set[i][j] == test_set_simulated[i][j] and test_set[i][j] == test_set_predicted[i][j]:
+                tp += 1
+            if test_set[i][j] != test_set_simulated[i][j] and test_set[i][j] == test_set_predicted[i][j]:
+                fp += 1
+    precision = tp / (tp + fp)
+    print "Precision is %.2f." %precision
+
+def ComputeRecall(test_set, test_set_simulated, test_set_predicted):
+    tp = 0.0 
+    num_words = 0.0
+    recall = 0.0
+    num_sents = len(test_set)
+    for i in xrange(0, num_sents):
+        for j in xrange(2, len(test_set[i]) - 2):
+            num_words += 1
+            if test_set[i][j] == test_set_simulated[i][j] and test_set[i][j] == test_set_predicted[i][j]:
+                tp += 1
+    recall = tp / num_words
+    print "Recall is %.2f." %recall
 
 class BigramHMM:
     def __init__(self, confusion_sets):
@@ -238,7 +270,6 @@ class ContextWords:
         self.confusion_sets = confusion_sets
         self.stop_words = stop_words
         self.context_probs = defaultdict(float)
-        self.idfs = defaultdict(float)
 
     def ComputeContextProbs(self, training_set):
         for sent in training_set:
@@ -276,19 +307,11 @@ class ContextWords:
         num_sents = len(training_set)
         num_sents_w_bigram = 0
         for sent in training_set:
-            if bigram[0] in sent and bigram[1] in sent: #
+            if bigram[0] in sent and bigram[1] in sent:
                 num_sents_w_bigram += 1
-        self.context_probs[bigram] *= log((float)(num_sents) / (float)(num_sents_w_bigram)) #
-        """
-        for word, count in self.vocabulary.iteritems():
-            if count != 0:
-                self.idfs[word] = log((float)(num_sents) / count)
-            else:
-                self.idfs[word] = 0.0
-        """
+        self.context_probs[bigram] *= log((float)(num_sents) / (float)(num_sents_w_bigram))
 
     def Train(self, training_set):
-        #self.IdfContextWords(training_set)
         self.ComputeContextProbs(training_set)
         self.PruneContextWords()
 
@@ -408,25 +431,25 @@ def main():
 
     predicted_test_set = MostCommonWordBaseline(test_set_prep_simulated, vocabulary, pruned_confusion_sets)
     print "--- Most common class baseline accuracy ---"
-    ComputeAccuracy(test_set_prep, test_set_prep_simulated, predicted_test_set)
+    PrintStats(test_set_prep, test_set_prep_simulated, predicted_test_set)
 
     bigram_pos_tagger = BigramHMM(pruned_confusion_sets)
     bigram_pos_tagger.Train(tagged_training_set_prep)
     predicted_test_set = bigram_pos_tagger.TestCorpus(test_set_prep_simulated)
     print "--- POS bigram method accuracy ---"
-    ComputeAccuracy(test_set_prep, test_set_prep_simulated, predicted_test_set)
+    PrintStats(test_set_prep, test_set_prep_simulated, predicted_test_set)
 
     context_words = ContextWords(3, 10, vocabulary, pruned_confusion_sets, stop_words)
     context_words.Train(training_set_prep)
     predicted_test_set = context_words.TestCorpus(test_set_prep_simulated)
     print "--- Context words method accuracy ---"
-    ComputeAccuracy(test_set_prep, test_set_prep_simulated, predicted_test_set)
+    PrintStats(test_set_prep, test_set_prep_simulated, predicted_test_set)
 
     hybrid = HybridModel(3, 10, vocabulary, pruned_confusion_sets, stop_words)
     hybrid.Train(tagged_training_set_prep)
     predicted_test_set = hybrid.Test(test_set_prep_simulated)
     print "--- Hybrid method accuracy ---"
-    ComputeAccuracy(test_set_prep, test_set_prep_simulated, predicted_test_set)
+    PrintStats(test_set_prep, test_set_prep_simulated, predicted_test_set)
 
 if __name__ == "__main__": 
     main()
