@@ -137,7 +137,7 @@ def ComputePrecision(test_set, test_set_simulated, test_set_predicted):
     precision = 0.0
     num_sents = len(test_set)
     for i in xrange(0, num_sents):
-        for j in xrange(2, len(test_set[i]) - 2):
+        for j in xrange(1, len(test_set[i]) - 1):
             if test_set[i][j] == test_set_simulated[i][j] and test_set[i][j] == test_set_predicted[i][j]:
                 tp += 1
             if test_set[i][j] != test_set_simulated[i][j] and test_set[i][j] == test_set_predicted[i][j]:
@@ -147,15 +147,16 @@ def ComputePrecision(test_set, test_set_simulated, test_set_predicted):
 
 def ComputeRecall(test_set, test_set_simulated, test_set_predicted):
     tp = 0.0 
-    num_words = 0.0
+    correct_words = 0.0
     recall = 0.0
     num_sents = len(test_set)
     for i in xrange(0, num_sents):
-        for j in xrange(2, len(test_set[i]) - 2):
-            num_words += 1
+        for j in xrange(1, len(test_set[i]) - 1):
             if test_set[i][j] == test_set_simulated[i][j] and test_set[i][j] == test_set_predicted[i][j]:
                 tp += 1
-    recall = tp / num_words
+            if test_set[i][j] == test_set_simulated[i][j]:
+                correct_words += 1
+    recall = tp / correct_words
     print "Recall is %.2f." %recall
 
 class BigramHMM:
