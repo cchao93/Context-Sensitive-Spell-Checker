@@ -1,7 +1,4 @@
 """ Victor Chia-Chi Chao, Max Cohen
-    COMP150 Natural Language Processing
-    Final Project
-    Context-sensitive Spell Checker
     12/22/15
 """
 
